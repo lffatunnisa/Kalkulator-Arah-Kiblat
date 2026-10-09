@@ -50,7 +50,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 .stat b{font:500 1.5rem/1.2 Fraunces,Georgia,serif}
 .stat.main{grid-column:1/-1;border-color:var(--teal);background:var(--teal-soft)}
 .stat.main b{font-size:clamp(2rem,6vw,2.8rem);color:var(--teal)}
-@media(max-width:860px){@media(max-width:520px){.steps pre{margin:0;white-space:pre-wrap;word-break:break-word;font:400 .86rem/1.7 "JetBrains Mono",ui-monospace,monospace;color:var(--ink)}
+.steps pre{margin:0;white-space:pre-wrap;word-break:break-word;font:400 .86rem/1.7 "JetBrains Mono",ui-monospace,monospace;color:var(--ink)}
 .steps .h{display:block;margin-top:14px;padding-top:10px;border-top:1px dashed var(--line);font:600 .9rem "Instrument Sans",sans-serif;color:var(--brass)}
 .steps .h:first-child{margin-top:0;border:0;padding:0}
 .steps .res{color:var(--teal);font-weight:500}
