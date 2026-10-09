@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kalkulator Arah Kiblat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Kalkulator arah kiblat</h1>
+      <p>Hitung sudut kiblat dan azimuth dari koordinat tempatmu dengan rumus segitiga bola, lengkap dengan langkah-langkah perhitungannya.</p>
+    </div>
+    <button class="theme" id="themeBtn" type="button">Mode gelap</button>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="in">
+      <h2 id="in">Koordinat tempat</h2>
+      <div class="tabs" role="tablist" aria-label="Format input">
+        <button role="tab" id="tDMS" aria-selected="true" type="button">DMS</button>
+        <button role="tab" id="tDEC" aria-selected="false" type="button">Desimal</button>
+      </div>
+
+      <div class="chips" id="chips" aria-label="Pilih kota"></div>
+
+      <div id="fDMS">
+        <fieldset>
+          <legend>Lintang</legend>
+          <div class="row">
+            <div><label class="s" for="latDir">Arah</label><select id="latDir"><option value="S" selected>LS</option><option value="U">LU</option></select></div>
+            <div><label class="s" for="latD">Derajat</label><input id="latD" type="number" inputmode="decimal" value="7"></div>
+            <div><label class="s" for="latM">Menit</label><input id="latM" type="number" inputmode="decimal" value="47"></div>
+            <div><label class="s" for="latS">Detik</label><input id="latS" type="number" inputmode="decimal" step="any" value="0"></div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Bujur</legend>
+          <div class="row">
+            <div><label class="s" for="lngDir">Arah</label><select id="lngDir"><option value="T" selected>BT</option><option value="B">BB</option></select></div>
+            <div><label class="s" for="lngD">Derajat</label><input id="lngD" type="number" inputmode="decimal" value="110"></div>
+            <div><label class="s" for="lngM">Menit</label><input id="lngM" type="number" inputmode="decimal" value="22"></div>
+            <div><label class="s" for="lngS">Detik</label><input id="lngS" type="number" inputmode="decimal" step="any" value="0"></div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div id="fDEC" hidden>
+        <fieldset>
+          <legend>Lintang</legend>
+          <div class="row dec"><input id="latX" type="number" inputmode="decimal" step="any" value="-7.78333" aria-label="Lintang desimal"></div>
+        </fieldset>
+        <fieldset>
+          <legend>Bujur</legend>
+          <div class="row dec"><input id="lngX" type="number" inputmode="decimal" step="any" value="110.36667" aria-label="Bujur desimal"></div>
+          <p class="hint">Pakai tanda minus (−) untuk Lintang Selatan (LS) atau Bujur Barat (BB).</p>
+        </fieldset>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="go" type="button">Hitung arah kiblat</button>
+        <button class="btn ghost" id="geo" type="button">Pakai lokasi saya</button>
+      </div>
+      <div class="err" id="err" role="alert"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="out">
+      <h2 id="out">Hasil</h2>
+      <svg class="compass" viewBox="0 0 400 400" role="img" aria-label="Kompas arah kiblat" id="svg">
+        <circle cx="200" cy="200" r="168" fill="none" stroke="var(--line)" stroke-width="1.5"/>
+        <circle cx="200" cy="200" r="120" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 6"/>
+        <g id="ticks"></g>
+        <path id="arc" fill="var(--teal-soft)" d=""/>
+        <line x1="200" y1="200" x2="200" y2="36" stroke="var(--ink)" stroke-width="2.5"/>
+        <g class="needle" id="needle" style="transform:rotate(0deg)">
+          <path d="M200 44 L211 200 L200 212 L189 200 Z" fill="var(--needle)"/>
+          <path d="M200 212 L211 200 L200 352 L189 200 Z" fill="var(--line)" opacity=".7"/>
+          <g transform="translate(200 30)"><rect x="-13" y="-13" width="26" height="26" rx="3" fill="var(--ink)"/><rect x="-13" y="-13" width="26" height="8" rx="2" fill="var(--brass)"/></g>
+        </g>
+        <circle cx="200" cy="200" r="9" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5"/>
+      </svg>
+      <div class="readout" id="readout"><p class="empty" style="grid-column:1/-1">Masukkan koordinat lalu tekan hitung.</p></div>
+    </section>
+  </div>
+
+  <section class="panel steps" id="stepsPanel" hidden>
+    <details open>
+      <summary>Langkah perhitungan</summary>
+      <pre id="steps"></pre>
+    </details>
+  </section>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
