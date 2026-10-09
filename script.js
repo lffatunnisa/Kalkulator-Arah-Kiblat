@@ -12,9 +12,13 @@ const KAABA = {
   lng: r5(39 + 49/60 + 34.33/3600)
 };
 
+/* Desimal -> DMS. Dihitung dalam bilangan bulat per 1/100 detik supaya
+   galat floating point (mis. 140.7 -> 140.69999...) tidak menghasilkan detik 60 atau menit 41 yang keliru. */
 const toDMS = v => {
-  const t = Math.abs(v), d = Math.floor(t), mf = (t - d) * 60, m = Math.floor(mf);
-  return {d, m, s: Math.round((mf - m) * 60 * 100) / 100};
+  const cs = Math.round(Math.abs(v) * 360000);          // 1/100 detik busur
+  const d = Math.floor(cs / 360000), sisa = cs - d * 360000;
+  const m = Math.floor(sisa / 6000);
+  return {d, m, s: (sisa - m * 6000) / 100};
 };
 const fmtDMS = (o, suffix) => `${o.d}° ${o.m}' ${o.s}"` + (suffix ? ` ${suffix}` : "");
 
