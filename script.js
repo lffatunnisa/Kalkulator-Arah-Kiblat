@@ -73,6 +73,7 @@ const CITIES = {
   "Medan":[3.58333,98.66667], "Makassar":[-5.14,119.41], "Denpasar":[-8.65,115.21667], "Jayapura":[-2.53,140.7]
 };
 let mode = "DMS";
+let qiblaAz = null;   // azimuth kiblat hasil hitung terakhir
 
 (function gambarSkala(){
   let h = "";
@@ -102,19 +103,41 @@ function isiKoordinat(lat, lng){
   $("latDir").value = lat < 0 ? "S" : "U"; $("latD").value = a.d; $("latM").value = a.m; $("latS").value = a.s;
   $("lngDir").value = lng < 0 ? "B" : "T"; $("lngD").value = b.d; $("lngM").value = b.m; $("lngS").value = b.s;
 }
-$("chips").innerHTML = Object.keys(CITIES).map(n => `<button type="button" class="chip">${n}</button>`).join("");
-$("chips").onclick = e => {
-  if (!e.target.classList.contains("chip")) return;
-  const [la, ln] = CITIES[e.target.textContent];
-  isiKoordinat(la, ln); hitung();
+/* ---------- contoh kota, urungkan, dan lokasi saya ---------- */
+const FIELD_IDS = ["latDir", "latD", "latM", "latS", "lngDir", "lngD", "lngM", "lngS", "latX", "lngX"];
+let undoInfo = null, toastTimer = null;
+const ambilIsian = () => ({mode, v: FIELD_IDS.map(id => $(id).value)});
+function pulihkanIsian(s){ FIELD_IDS.forEach((id, i) => { $(id).value = s.v[i]; }); setMode(s.mode); }
+function tampilToast(pesan, undo){
+  undoInfo = undo; $("toastMsg").textContent = pesan; $("toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("toast").hidden = true; undoInfo = null; }, 9000);
+}
+$("undoBtn").onclick = () => {
+  if (!undoInfo) return;
+  pulihkanIsian(undoInfo.sebelum); $("err").textContent = "";
+  if (undoInfo.hitungUlang) hitung();
+  else { $("readout").classList.remove("usang"); $("svg").classList.remove("usang"); }
+  $("toast").hidden = true; undoInfo = null;
+};
+$("citySel").innerHTML = '<option value="">Isi dengan contoh kota…</option>' + Object.keys(CITIES).map(n => `<option>${n}</option>`).join("");
+$("citySel").onchange = e => {
+  const nama = e.target.value;
+  if (!nama) return;
+  const sebelum = ambilIsian(), [la, ln] = CITIES[nama];
+  isiKoordinat(la, ln); e.target.value = ""; $("err").textContent = "";
+  $("readout").classList.add("usang"); $("svg").classList.add("usang");   // hasil lama belum diperbarui
+  tampilToast(`Koordinat ${nama} terisi. Tekan "Hitung arah kiblat" untuk melihat hasilnya.`, {sebelum, hitungUlang: false});
 };
 $("geo").onclick = () => {
   if (!navigator.geolocation) { $("err").textContent = "Browser ini tidak mendukung geolokasi."; return; }
   $("geo").textContent = "Mencari lokasi…";
   navigator.geolocation.getCurrentPosition(p => {
     $("geo").textContent = "Pakai lokasi saya";
+    const sebelum = ambilIsian();
     isiKoordinat(r5(p.coords.latitude), r5(p.coords.longitude));
     hitung();
+    tampilToast("Koordinat diisi dari lokasi perangkat.", {sebelum, hitungUlang: true});
   }, () => {
     $("geo").textContent = "Pakai lokasi saya";
     $("err").textContent = "Lokasi tidak bisa diakses. Izinkan akses lokasi atau isi koordinat manual.";
@@ -153,11 +176,14 @@ function bacaInput(){
 
 function hitung(){
   $("err").textContent = "";
+  $("readout").classList.remove("usang"); $("svg").classList.remove("usang");
+  if (undoInfo && !undoInfo.hitungUlang) { $("toast").hidden = true; undoInfo = null; }   // pesan "tekan Hitung" sudah tidak relevan
   let inp;
   try { inp = bacaInput(); } catch (e) { $("err").textContent = e; return; }
   const {lat, lng, info} = inp;
   const k = hitungKiblat(lat, lng);
   const {az, B, special} = k;
+  qiblaAz = az;
   const azD = toDMS(az), BD = toDMS(B);
   const n = notasiArah(B, k.timur);
   const rel = special ? "Lurus" : k.timur ? "Barat (U-B)" : "Timur (U-T)";
@@ -218,6 +244,77 @@ function hitung(){
   }
   $("steps").innerHTML = L.join("\n");
   $("stepsPanel").hidden = false;
+  perbaruiLive();
 }
+
+/* ---------- kompas langsung (sensor arah perangkat) ---------- */
+let live = {aktif: false, arah: null};
+let liveHalus = 0, liveGulung = 0, liveAdaData = false, liveTimer = null, adaAbsolut = false;
+const deklinasi = () => parseFloat($("decl").value) || 0;
+
+/* Arah bagian atas layar HP, derajat dari utara magnetik searah jarum jam. null jika sensor tidak mutlak. */
+function arahDariSensor(e){
+  if (typeof e.webkitCompassHeading === "number") return e.webkitCompassHeading;       // iOS (sudah dikompensasi kemiringan)
+  if (e.alpha === null || e.alpha === undefined) return null;
+  if (!(e.absolute || e.type === "deviceorientationabsolute")) return null;            // sensor relatif tidak tahu arah utara
+  const a = rad(e.alpha), b = rad(e.beta || 0), g = rad(e.gamma || 0);
+  if (Math.abs(Math.cos(b)) > 0.35)                                                    // HP mendatar atau agak miring: tepi atas HP
+    return norm360(deg(Math.atan2(-Math.sin(a) * Math.cos(b), Math.cos(a) * Math.cos(b))));
+  const vx = -Math.cos(a) * Math.sin(g) - Math.sin(a) * Math.sin(b) * Math.cos(g);     // HP hampir tegak: arah belakang HP
+  const vy = -Math.sin(a) * Math.sin(g) + Math.cos(a) * Math.sin(b) * Math.cos(g);
+  return norm360(deg(Math.atan2(vx, vy)));
+}
+
+function putarKompas(h){            // h: arah sejati HP
+  if (!liveAdaData) { liveAdaData = true; liveHalus = h; liveGulung = h; }
+  else { const d = normDiff(h - liveHalus) * 0.25; liveHalus = norm360(liveHalus + d); liveGulung += d; }  // peredam getaran sensor
+  live.arah = liveHalus;
+  $("dial").style.transform = `rotate(${-liveGulung}deg)`;
+  perbaruiLive();
+}
+
+function perbaruiLive(){
+  if (!live.aktif || live.arah === null || qiblaAz === null) return;
+  const sel = normDiff(qiblaAz - live.arah), ok = Math.abs(sel) <= 3, st = $("liveStatus");
+  st.hidden = false; st.classList.toggle("ok", ok); $("svg").classList.toggle("hadap", ok);
+  st.innerHTML = ok ? `<b>Menghadap kiblat</b> (selisih ${Math.abs(sel).toFixed(1)}°)`
+    : `Arah HP <b>${Math.round(live.arah)}°</b>. Putar badan ${Math.abs(Math.round(sel))}° ke ${sel > 0 ? "kanan" : "kiri"} sampai jarum hijau berada di atas.`;
+}
+
+function onSensor(e){
+  if (e.type === "deviceorientationabsolute") {
+    if (e.alpha === null || e.alpha === undefined) return;   // beberapa browser mengirim event kosong saat listener dipasang
+    adaAbsolut = true;
+  } else if (adaAbsolut) return;                              // sudah ada sensor mutlak, abaikan yang relatif
+  const h = arahDariSensor(e);
+  if (h === null) return;
+  if (!liveAdaData) { clearTimeout(liveTimer); $("liveMsg").textContent = ""; }
+  putarKompas(norm360(h + deklinasi()));
+}
+
+async function aktifkanLive(){
+  const msg = $("liveMsg"); msg.textContent = "";
+  if (!("DeviceOrientationEvent" in window)) { msg.textContent = "Browser atau perangkat ini tidak mendukung sensor arah. Kompas langsung umumnya hanya tersedia di HP."; return; }
+  try {
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {              // iOS meminta izin lewat tombol
+      if (await DeviceOrientationEvent.requestPermission() !== "granted") { msg.textContent = "Izin sensor ditolak. Izinkan akses gerakan dan orientasi pada pengaturan browser, lalu coba lagi."; return; }
+    }
+  } catch (err) { msg.textContent = "Izin sensor tidak dapat diminta. Pastikan halaman dibuka lewat HTTPS."; return; }
+  live = {aktif: true, arah: null}; liveAdaData = false; adaAbsolut = false;
+  window.addEventListener("deviceorientationabsolute", onSensor);
+  window.addEventListener("deviceorientation", onSensor);
+  $("liveBtn").textContent = "Matikan kompas langsung"; $("liveOpts").hidden = false; $("svg").classList.add("live");
+  msg.textContent = "Menunggu data sensor…";
+  liveTimer = setTimeout(() => { if (!liveAdaData) msg.textContent = "Tidak ada data sensor arah. Kompas langsung hanya berfungsi di HP, lewat HTTPS, dengan izin sensor aktif."; }, 3000);
+}
+function matikanLive(){
+  window.removeEventListener("deviceorientationabsolute", onSensor);
+  window.removeEventListener("deviceorientation", onSensor);
+  clearTimeout(liveTimer); live = {aktif: false, arah: null};
+  $("dial").style.transform = ""; $("svg").classList.remove("live", "hadap");
+  $("liveStatus").hidden = true; $("liveOpts").hidden = true; $("liveMsg").textContent = "";
+  $("liveBtn").textContent = "Aktifkan kompas langsung";
+}
+$("liveBtn").onclick = () => live.aktif ? matikanLive() : aktifkanLive();
 
 hitung();
