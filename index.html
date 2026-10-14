@@ -12,7 +12,7 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>Kalkulator Arah Kiblat</h1>
+      <h1>Kalkulator arah kiblat</h1>
       <p>Hitung sudut kiblat dan azimuth dari koordinat tempatmu dengan rumus segitiga bola, lengkap dengan langkah-langkah perhitungannya.</p>
     </div>
     <button class="theme" id="themeBtn" type="button">Mode gelap</button>
@@ -26,7 +26,7 @@
         <button role="tab" id="tDEC" aria-selected="false" type="button">Desimal</button>
       </div>
 
-      <div class="chips" id="chips" aria-label="Pilih kota"></div>
+      <div class="cityrow"><label class="s" for="citySel">Contoh kota</label><select id="citySel"></select></div>
 
       <div id="fDMS">
         <fieldset>
@@ -66,11 +66,13 @@
         <button class="btn ghost" id="geo" type="button">Pakai lokasi saya</button>
       </div>
       <div class="err" id="err" role="alert"></div>
+      <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button type="button" class="link" id="undoBtn">Urungkan</button></div>
     </section>
 
     <section class="panel" aria-labelledby="out">
       <h2 id="out">Hasil</h2>
-      <svg class="compass" viewBox="0 0 400 400" role="img" aria-label="Kompas arah kiblat" id="svg">
+      <svg class="compass" viewBox="0 -14 400 414" role="img" aria-label="Kompas arah kiblat" id="svg">
+        <g id="dial">
         <circle cx="200" cy="200" r="168" fill="none" stroke="var(--line)" stroke-width="1.5"/>
         <circle cx="200" cy="200" r="120" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 6"/>
         <g id="ticks"></g>
@@ -81,8 +83,20 @@
           <path d="M200 212 L211 200 L200 352 L189 200 Z" fill="var(--line)" opacity=".7"/>
           <g transform="translate(200 30)"><rect x="-13" y="-13" width="26" height="26" rx="3" fill="var(--ink)"/><rect x="-13" y="-13" width="26" height="8" rx="2" fill="var(--brass)"/></g>
         </g>
+        </g>
+        <path id="phoneMark" aria-hidden="true" d="M192 -13 L208 -13 L200 3 Z"/>
         <circle cx="200" cy="200" r="9" fill="var(--panel)" stroke="var(--ink)" stroke-width="2.5"/>
       </svg>
+      <div class="live">
+        <button class="btn ghost" id="liveBtn" type="button">Aktifkan kompas langsung</button>
+        <div class="liveopts" id="liveOpts" hidden>
+          <label class="s" for="decl">Koreksi deklinasi magnetik (°, positif ke timur)</label>
+          <input id="decl" type="number" step="0.1" value="0">
+        </div>
+        <p class="livestatus" id="liveStatus" role="status" aria-live="polite" hidden></p>
+        <p class="hint" id="liveMsg"></p>
+        <p class="hint">Mode ini memakai sensor arah HP: letakkan HP mendatar, jauhkan dari logam dan magnet, lalu putar badan sampai jarum hijau berada di atas. Sensor membaca utara magnetik sehingga hasilnya berupa bantuan, bukan alat ukur presisi.</p>
+      </div>
       <div class="readout" id="readout"><p class="empty" style="grid-column:1/-1">Masukkan koordinat lalu tekan hitung.</p></div>
     </section>
   </div>
