@@ -126,7 +126,7 @@ $("citySel").onchange = e => {
   if (!nama) return;
   const sebelum = ambilIsian(), [la, ln] = CITIES[nama];
   isiKoordinat(la, ln); e.target.value = ""; $("err").textContent = "";
-  $("readout").classList.add("usang"); $("svg").classList.add("usang");   // hasil lama belum diperbarui
+  if (qiblaAz !== null) { $("readout").classList.add("usang"); $("svg").classList.add("usang"); }   // hasil lama belum diperbarui
   tampilToast(`Koordinat ${nama} terisi. Tekan "Hitung arah kiblat" untuk melihat hasilnya.`, {sebelum, hitungUlang: false});
 };
 $("geo").onclick = () => {
@@ -143,21 +143,57 @@ $("geo").onclick = () => {
     $("err").textContent = "Lokasi tidak bisa diakses. Izinkan akses lokasi atau isi koordinat manual.";
   }, {timeout: 10000});
 };
+/* ---------- tema warna dan mode terang/gelap (disimpan di perangkat ini saja) ---------- */
+const TEMA = ["hijau", "biru", "ungu", "terakota", "grafit"];
+const simpanPref = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* penyimpanan tidak tersedia */ } };
+const bacaPref = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+function terapkanMode(mode){
+  document.documentElement.dataset.theme = mode;
+  $("themeBtn").textContent = mode === "dark" ? "Mode terang" : "Mode gelap";
+}
+function terapkanTema(tema){
+  if (!TEMA.includes(tema)) tema = "hijau";
+  document.documentElement.dataset.tema = tema;
+  document.querySelectorAll(".swatch").forEach(b => b.setAttribute("aria-checked", String(b.dataset.tema === tema)));
+}
 $("themeBtn").onclick = () => {
-  const root = document.documentElement;
-  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  root.dataset.theme = dark ? "light" : "dark";
-  $("themeBtn").textContent = dark ? "Mode gelap" : "Mode terang";
+  const mode = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  terapkanMode(mode); simpanPref("qiblad.mode", mode);
 };
+document.querySelector(".swatches").onclick = e => {
+  const b = e.target.closest(".swatch");
+  if (!b) return;
+  terapkanTema(b.dataset.tema); simpanPref("qiblad.tema", b.dataset.tema);
+};
+terapkanMode(bacaPref("qiblad.mode") || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+terapkanTema(bacaPref("qiblad.tema"));
 $("go").onclick = hitung;
 document.addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") hitung(); });
+
+/* ---------- pembangun persamaan MathML ---------- */
+const MX = {
+  n: x => { const v = String(x); return v.startsWith("-") ? `<mo>−</mo><mn>${v.slice(1)}</mn>` : `<mn>${v}</mn>`; },
+  i: x => `<mi>${x}</mi>`, f: x => `<mi mathvariant="normal">${x}</mi>`, o: x => `<mo>${x}</mo>`, t: x => `<mtext>${x}</mtext>`,
+  r: (...a) => `<mrow>${a.join("")}</mrow>`,
+  sub: (b, s) => `<msub>${b}${s}</msub>`, frac: (a, b) => `<mfrac>${a}${b}</mfrac>`,
+  p: x => `<mo lspace="0" rspace="0">(</mo>${x}<mo lspace="0" rspace="0">)</mo>`,
+  res: x => `<mstyle class="res">${x}</mstyle>`
+};
+MX.g = x => MX.n(x) + `<mo lspace="0" rspace="0">°</mo>`;                                  // angka dengan tanda derajat
+MX.fn = (nama, arg) => MX.f(nama) + "<mo>&#x2061;</mo>" + MX.p(arg);                       // fungsi, mis. sin(a)
+MX.dms = o => MX.n(o.d) + `<mo lspace="0" rspace="0">°</mo>` + MX.n(o.m) + `<mo lspace="0" rspace="0">′</mo>` + MX.n(o.s) + `<mo lspace="0" rspace="0">″</mo>`;
+const eq = (kiri, kanan) => `<mtr class="mulai"><mtd>${kiri}</mtd><mtd><mo>=</mo>${kanan}</mtd></mtr>`;      // baris persamaan
+const lanjut = kanan => `<mtr><mtd></mtd><mtd><mo>=</mo>${kanan}</mtd></mtr>`;                // baris lanjutan, tanda = sejajar
+const tabel = baris => `<div class="eqwrap"><math><mtable>${baris.join("")}</mtable></math></div>`;
+const cotBNegatif = k => k.cotB < 0;   // arkus kotangen negatif -> B ditambah 180°
 
 function bacaInput(){
   let lat, lng, info = {};
   if (mode === "DMS") {
-    const v = id => parseFloat($(id).value);
-    const d1 = v("latD"), m1 = v("latM"), s1 = v("latS"), d2 = v("lngD"), m2 = v("lngM"), s2 = v("lngS");
-    if ([d1,m1,s1,d2,m2,s2].some(isNaN)) throw "Lengkapi semua kolom derajat, menit, dan detik.";
+    const v = id => parseFloat($(id).value), z = id => $(id).value.trim() === "" ? 0 : parseFloat($(id).value);   // menit/detik kosong dianggap 0
+    const d1 = v("latD"), m1 = z("latM"), s1 = z("latS"), d2 = v("lngD"), m2 = z("lngM"), s2 = z("lngS");
+    if (isNaN(d1) || isNaN(d2)) throw "Isi derajat lintang dan bujur terlebih dahulu.";
+    if ([m1,s1,m2,s2].some(isNaN)) throw "Menit dan detik harus berupa angka.";
     if (m1 >= 60 || m2 >= 60 || s1 >= 60 || s2 >= 60 || [d1,m1,s1,d2,m2,s2].some(x => x < 0)) throw "Menit dan detik harus 0–59,99 dan tidak boleh negatif.";
     lat = r5(d1 + m1/60 + s1/3600); lng = r5(d2 + m2/60 + s2/3600);
     const aL = $("latDir").value, aB = $("lngDir").value;
@@ -183,7 +219,7 @@ function hitung(){
   const {lat, lng, info} = inp;
   const k = hitungKiblat(lat, lng);
   const {az, B, special} = k;
-  qiblaAz = az;
+  qiblaAz = az; $("svg").classList.remove("kosong");
   const azD = toDMS(az), BD = toDMS(B);
   const n = notasiArah(B, k.timur);
   const rel = special ? "Lurus" : k.timur ? "Barat (U-B)" : "Timur (U-T)";
@@ -199,50 +235,65 @@ function hitung(){
   const R = 168, x = 200 + R * Math.sin(rad(az)), y = 200 - R * Math.cos(rad(az));
   $("arc").setAttribute("d", az === 0 ? "" : `M200 200 L200 ${200-R} A${R} ${R} 0 ${az > 180 ? 1 : 0} 1 ${x} ${y} Z`);
 
-  /* langkah perhitungan */
-  const L = [], h = t => L.push(`<span class="h">${t}</span>`);
-  h("Data diketahui");
-  L.push(`Lintang Ka'bah (φk) = 21° 25' 21.03" LU = ${KAABA.lat}°`);
-  L.push(`Bujur Ka'bah (λk)   = 39° 49' 34.33" BT = ${KAABA.lng}°`);
+  /* langkah perhitungan (persamaan MathML) */
+  const S = [], bagian = (judul, isi) => S.push(`<section><div class="h">${judul}</div>${isi}</section>`);
+  const catatan = t => `<p class="catatan">${t}</p>`;
+  const nilaiPhi = ph => MX.sub(MX.i("φ"), MX.i(ph)), nilaiLam = ph => MX.sub(MX.i("λ"), MX.i(ph));
+  const pecahan = (d, m, sd) => MX.n(d) + MX.o("+") + MX.frac(MX.n(m), MX.n(60)) + MX.o("+") + MX.frac(MX.n(sd), MX.n(3600));
+
+  const data = [
+    eq(nilaiPhi("k"), MX.dms({d: 21, m: 25, s: 21.03}) + MX.t("&#160;LU")),
+    lanjut(pecahan(21, 25, 21.03)), lanjut(MX.g(KAABA.lat)),
+    eq(nilaiLam("k"), MX.dms({d: 39, m: 49, s: 34.33}) + MX.t("&#160;BT")),
+    lanjut(pecahan(39, 49, 34.33)), lanjut(MX.g(KAABA.lng))
+  ];
   if (info.dms) {
-    L.push(`Lintang tempat (φt) = ${info.d1}° ${info.m1}' ${info.s1}" L${info.aL}`);
-    L.push(`                    = ${info.d1} + (${info.m1}/60) + (${info.s1}/3600) = ${lat}°`);
-    L.push(`Bujur tempat (λt)   = ${info.d2}° ${info.m2}' ${info.s2}" B${info.aB}`);
-    L.push(`                    = ${info.d2} + (${info.m2}/60) + (${info.s2}/3600) = ${lng}°`);
+    data.push(eq(nilaiPhi("t"), MX.dms({d: info.d1, m: info.m1, s: info.s1}) + MX.t("&#160;L" + info.aL)),
+      lanjut(pecahan(info.d1, info.m1, info.s1)), lanjut(MX.g(lat)),
+      eq(nilaiLam("t"), MX.dms({d: info.d2, m: info.m2, s: info.s2}) + MX.t("&#160;B" + info.aB)),
+      lanjut(pecahan(info.d2, info.m2, info.s2)), lanjut(MX.g(lng)));
   } else {
-    L.push(`Lintang tempat (φt) = ${lat}° = ${fmtDMS(toDMS(lat), "L" + info.aL)}`);
-    L.push(`Bujur tempat (λt)   = ${lng}° = ${fmtDMS(toDMS(lng), "B" + info.aB)}`);
+    data.push(eq(nilaiPhi("t"), MX.g(lat)), lanjut(MX.dms(toDMS(lat)) + MX.t("&#160;L" + info.aL)),
+      eq(nilaiLam("t"), MX.g(lng)), lanjut(MX.dms(toDMS(lng)) + MX.t("&#160;B" + info.aB)));
   }
-  h("Sudut segitiga bola");
-  L.push(`a = 90° - φt = 90° - (${lat}°) = ${r5(k.a)}°`);
-  L.push(`b = 90° - φk = 90° - (${KAABA.lat}°) = ${r5(k.b)}°`);
-  L.push(`C = |λt - λk| = |(${lng}°) - (${KAABA.lng}°)| = ${k.C}°`);
-  if (k.bujurRaw > 180) L.push(`(selisih bujur ${k.bujurRaw}° melebihi 180°, dinormalisasi lewat sisi terpendek: 360° - ${k.bujurRaw}° = ${k.C}°)`);
+  bagian("Data diketahui", tabel(data));
+
+  const bar = x => `<mo lspace="0" rspace="0" stretchy="false">|</mo>${x}<mo lspace="0" rspace="0" stretchy="false">|</mo>`;
+  bagian("Sudut segitiga bola", tabel([
+    eq(MX.i("a"), MX.g(90) + MX.o("−") + nilaiPhi("t")), lanjut(MX.g(90) + MX.o("−") + MX.p(MX.g(lat))), lanjut(MX.g(r5(k.a))),
+    eq(MX.i("b"), MX.g(90) + MX.o("−") + nilaiPhi("k")), lanjut(MX.g(90) + MX.o("−") + MX.p(MX.g(KAABA.lat))), lanjut(MX.g(r5(k.b))),
+    eq(MX.i("C"), bar(nilaiLam("t") + MX.o("−") + nilaiLam("k"))),
+    lanjut(bar(MX.p(MX.g(lng)) + MX.o("−") + MX.p(MX.g(KAABA.lng)))), lanjut(MX.g(k.C))
+  ]) + (k.bujurRaw > 180 ? catatan(`Selisih bujur ${k.bujurRaw}° melebihi 180°, sehingga dinormalisasi lewat sisi terpendek: 360° − ${k.bujurRaw}° = ${k.C}°.`) : ""));
+
   if (special) {
-    h("Kasus khusus");
-    L.push("Tempat berada pada bujur yang sama atau berseberangan dengan Ka'bah, atau di kutub, sehingga arah kiblat lurus ke utara atau selatan.");
-    L.push(`Azimuth = ${k.rumus} = <span class="res">${az}° (${fmtDMS(azD)})</span>`);
+    bagian("Kasus khusus", catatan("Tempat berada pada bujur yang sama atau berseberangan dengan Ka'bah, atau di kutub, sehingga arah kiblat lurus ke utara atau selatan.")
+      + tabel([eq(MX.t("Azimuth"), MX.t(k.rumus)), lanjut(MX.res(MX.g(az))), lanjut(MX.dms(azD))]));
   } else {
-    h("Nilai trigonometri");
-    L.push(`sin(a) = sin(${r5(k.a)}°) = ${k.sinA}`);
-    L.push(`cos(a) = cos(${r5(k.a)}°) = ${k.cosA}`);
-    L.push(`cot(b) = cot(${r5(k.b)}°) = ${k.cotb}`);
-    L.push(`sin(C) = sin(${k.C}°) = ${k.sinC}`);
-    L.push(`cot(C) = cot(${k.C}°) = ${k.cotC}`);
-    h("Cotangen sudut B");
-    L.push(`cot(B) = ((cot b × sin a) / sin C) - (cos a × cot C)`);
-    L.push(`       = ((${k.cotb} × ${k.sinA}) / ${k.sinC}) - (${k.cosA} × ${k.cotC})`);
-    L.push(`       = (${r5(k.cotb*k.sinA)} / ${k.sinC}) - (${r5(k.cosA*k.cotC)})`);
-    L.push(`       = ${r5(k.cotb*k.sinA/k.sinC)} - (${r5(k.cosA*k.cotC)})`);
-    L.push(`       = <span class="res">${k.cotB}</span>`);
-    h("Sudut B");
-    L.push(`B = arccot(${k.cotB}) = <span class="res">${B}° (${fmtDMS(BD)})</span>`);
-    h("Azimuth");
-    L.push(`Tempat berada di ${k.timur ? "timur" : "barat"} Ka'bah, maka Azimuth = ${k.rumus}`);
-    if (k.timur) L.push(`        = 360° - ${B}°`);
-    L.push(`        = <span class="res">${az}° (${fmtDMS(azD)})</span>`);
+    const tri = (nama, v, sudut, hasil) => eq(MX.fn(nama, MX.i(v)), MX.fn(nama, MX.g(sudut)) + MX.o("=") + MX.n(hasil));
+    bagian("Nilai trigonometri", tabel([
+      tri("sin", "a", r5(k.a), k.sinA), tri("cos", "a", r5(k.a), k.cosA), tri("cot", "b", r5(k.b), k.cotb),
+      tri("sin", "C", k.C, k.sinC), tri("cot", "C", k.C, k.cotC)
+    ]));
+    const cot = v => MX.fn("cot", MX.i(v)), simb = (f, v) => MX.fn(f, MX.i(v));   // notasi seragam: sin(a), cot(B), dst.
+    const kali = (x, y) => x + MX.o("×") + y;
+    const suku1 = r5(k.cotb * k.sinA), suku2 = r5(k.cosA * k.cotC);
+    bagian("Cotangen sudut B", tabel([
+      eq(cot("B"), MX.frac(MX.r(kali(cot("b"), simb("sin", "a"))), MX.r(simb("sin", "C"))) + MX.o("−") + MX.r(kali(simb("cos", "a"), cot("C")))),
+      lanjut(MX.frac(MX.r(kali(MX.n(k.cotb), MX.n(k.sinA))), MX.n(k.sinC)) + MX.o("−") + MX.p(kali(MX.n(k.cosA), MX.n(k.cotC)))),
+      lanjut(MX.frac(MX.n(suku1), MX.n(k.sinC)) + MX.o("−") + MX.p(MX.n(suku2))),
+      lanjut(MX.n(r5(suku1 / k.sinC)) + MX.o("−") + MX.p(MX.n(suku2))),
+      lanjut(MX.res(MX.n(k.cotB)))
+    ]));
+    bagian("Sudut B", tabel([
+      eq(MX.i("B"), MX.f("arccot") + "<mo>&#x2061;</mo>" + MX.p(MX.n(k.cotB))), lanjut(MX.res(MX.g(B))), lanjut(MX.dms(BD))
+    ]) + (cotBNegatif(k) ? catatan("Sudut B hasil arkus kotangen bernilai negatif, sehingga ditambah 180°.") : ""));
+    bagian("Azimuth", catatan(`Tempat berada di ${k.timur ? "timur" : "barat"} Ka'bah, sehingga rumus Azimuth yang dipakai adalah ${k.rumus}.`)
+      + tabel(k.timur
+        ? [eq(MX.t("Azimuth"), MX.g(360) + MX.o("−") + MX.i("B")), lanjut(MX.g(360) + MX.o("−") + MX.g(B)), lanjut(MX.res(MX.g(az))), lanjut(MX.dms(azD))]
+        : [eq(MX.t("Azimuth"), MX.i("B")), lanjut(MX.res(MX.g(az))), lanjut(MX.dms(azD))]));
   }
-  $("steps").innerHTML = L.join("\n");
+  $("steps").innerHTML = S.join("");
   $("stepsPanel").hidden = false;
   perbaruiLive();
 }
@@ -294,6 +345,7 @@ function onSensor(e){
 
 async function aktifkanLive(){
   const msg = $("liveMsg"); msg.textContent = "";
+  if (qiblaAz === null) { msg.textContent = "Hitung arah kiblat dulu (isi koordinat lalu tekan Hitung), baru aktifkan kompas langsung."; return; }
   if (!("DeviceOrientationEvent" in window)) { msg.textContent = "Browser atau perangkat ini tidak mendukung sensor arah. Kompas langsung umumnya hanya tersedia di HP."; return; }
   try {
     if (typeof DeviceOrientationEvent.requestPermission === "function") {              // iOS meminta izin lewat tombol
@@ -316,5 +368,3 @@ function matikanLive(){
   $("liveBtn").textContent = "Aktifkan kompas langsung";
 }
 $("liveBtn").onclick = () => live.aktif ? matikanLive() : aktifkanLive();
-
-hitung();
