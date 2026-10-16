@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Kalkulator Arah Kiblat</title>
+<title>Qiblad: Kalkulator Arah Kiblat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
@@ -12,13 +12,18 @@
 <div class="wrap">
   <header>
     <div>
-      <h1>Kalkulator arah kiblat</h1>
+      <h1>Qiblad</h1>
+      <p class="sub">Kalkulator Arah Kiblat</p>
       <p>Hitung sudut kiblat dan azimuth dari koordinat tempatmu dengan rumus segitiga bola, lengkap dengan langkah-langkah perhitungannya.</p>
     </div>
-    <button class="theme" id="themeBtn" type="button">Mode gelap</button>
+    <div class="opts">
+      <div class="swatches" role="radiogroup" aria-label="Tema warna"><button type="button" class="swatch" role="radio" aria-checked="true" data-tema="hijau" aria-label="Tema Hijau" title="Hijau" style="--sw:#0e6b5e;--sw-d:#3fc2a8"></button><button type="button" class="swatch" role="radio" aria-checked="false" data-tema="biru" aria-label="Tema Biru" title="Biru" style="--sw:#1a5fb4;--sw-d:#6db3ff"></button><button type="button" class="swatch" role="radio" aria-checked="false" data-tema="ungu" aria-label="Tema Ungu" title="Ungu" style="--sw:#6b3fb5;--sw-d:#b794f6"></button><button type="button" class="swatch" role="radio" aria-checked="false" data-tema="terakota" aria-label="Tema Terakota" title="Terakota" style="--sw:#b0451a;--sw-d:#f0925a"></button><button type="button" class="swatch" role="radio" aria-checked="false" data-tema="grafit" aria-label="Tema Grafit" title="Grafit" style="--sw:#2f3b4a;--sw-d:#e2e2e2"></button></div>
+      <button class="theme" id="themeBtn" type="button">Mode gelap</button>
+    </div>
   </header>
 
   <div class="grid">
+    <div class="col">
     <section class="panel" aria-labelledby="in">
       <h2 id="in">Koordinat tempat</h2>
       <div class="tabs" role="tablist" aria-label="Format input">
@@ -33,18 +38,18 @@
           <legend>Lintang</legend>
           <div class="row">
             <div><label class="s" for="latDir">Arah</label><select id="latDir"><option value="S" selected>LS</option><option value="U">LU</option></select></div>
-            <div><label class="s" for="latD">Derajat</label><input id="latD" type="number" inputmode="decimal" value="7"></div>
-            <div><label class="s" for="latM">Menit</label><input id="latM" type="number" inputmode="decimal" value="47"></div>
-            <div><label class="s" for="latS">Detik</label><input id="latS" type="number" inputmode="decimal" step="any" value="0"></div>
+            <div><label class="s" for="latD">Derajat</label><input id="latD" type="number" inputmode="decimal" placeholder="mis. 7"></div>
+            <div><label class="s" for="latM">Menit</label><input id="latM" type="number" inputmode="decimal" placeholder="0"></div>
+            <div><label class="s" for="latS">Detik</label><input id="latS" type="number" inputmode="decimal" step="any" placeholder="0"></div>
           </div>
         </fieldset>
         <fieldset>
           <legend>Bujur</legend>
           <div class="row">
             <div><label class="s" for="lngDir">Arah</label><select id="lngDir"><option value="T" selected>BT</option><option value="B">BB</option></select></div>
-            <div><label class="s" for="lngD">Derajat</label><input id="lngD" type="number" inputmode="decimal" value="110"></div>
-            <div><label class="s" for="lngM">Menit</label><input id="lngM" type="number" inputmode="decimal" value="22"></div>
-            <div><label class="s" for="lngS">Detik</label><input id="lngS" type="number" inputmode="decimal" step="any" value="0"></div>
+            <div><label class="s" for="lngD">Derajat</label><input id="lngD" type="number" inputmode="decimal" placeholder="mis. 110"></div>
+            <div><label class="s" for="lngM">Menit</label><input id="lngM" type="number" inputmode="decimal" placeholder="0"></div>
+            <div><label class="s" for="lngS">Detik</label><input id="lngS" type="number" inputmode="decimal" step="any" placeholder="0"></div>
           </div>
         </fieldset>
       </div>
@@ -52,11 +57,11 @@
       <div id="fDEC" hidden>
         <fieldset>
           <legend>Lintang</legend>
-          <div class="row dec"><input id="latX" type="number" inputmode="decimal" step="any" value="-7.78333" aria-label="Lintang desimal"></div>
+          <div class="row dec"><input id="latX" type="number" inputmode="decimal" step="any" placeholder="mis. -7.78333" aria-label="Lintang desimal"></div>
         </fieldset>
         <fieldset>
           <legend>Bujur</legend>
-          <div class="row dec"><input id="lngX" type="number" inputmode="decimal" step="any" value="110.36667" aria-label="Bujur desimal"></div>
+          <div class="row dec"><input id="lngX" type="number" inputmode="decimal" step="any" placeholder="mis. 110.36667" aria-label="Bujur desimal"></div>
           <p class="hint">Pakai tanda minus (−) untuk Lintang Selatan (LS) atau Bujur Barat (BB).</p>
         </fieldset>
       </div>
@@ -68,10 +73,9 @@
       <div class="err" id="err" role="alert"></div>
       <div class="toast" id="toast" role="status" aria-live="polite" hidden><span id="toastMsg"></span><button type="button" class="link" id="undoBtn">Urungkan</button></div>
     </section>
-
-    <section class="panel" aria-labelledby="out">
-      <h2 id="out">Hasil</h2>
-      <svg class="compass" viewBox="0 -14 400 414" role="img" aria-label="Kompas arah kiblat" id="svg">
+    <section class="panel" aria-labelledby="kmp">
+      <h2 id="kmp">Kompas kiblat</h2>
+      <svg class="compass kosong" viewBox="0 -14 400 414" role="img" aria-label="Kompas arah kiblat" id="svg">
         <g id="dial">
         <circle cx="200" cy="200" r="168" fill="none" stroke="var(--line)" stroke-width="1.5"/>
         <circle cx="200" cy="200" r="120" fill="none" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 6"/>
@@ -97,16 +101,26 @@
         <p class="hint" id="liveMsg"></p>
         <p class="hint">Mode ini memakai sensor arah HP: letakkan HP mendatar, jauhkan dari logam dan magnet, lalu putar badan sampai jarum hijau berada di atas. Sensor membaca utara magnetik sehingga hasilnya berupa bantuan, bukan alat ukur presisi.</p>
       </div>
-      <div class="readout" id="readout"><p class="empty" style="grid-column:1/-1">Masukkan koordinat lalu tekan hitung.</p></div>
     </section>
-  </div>
-
-  <section class="panel steps" id="stepsPanel" hidden>
+    <section class="panel" aria-labelledby="out">
+      <h2 id="out">Hasil</h2>
+      <div class="readout" id="readout"><p class="empty" style="grid-column:1/-1">Masukkan koordinat tempat, lalu tekan "Hitung arah kiblat".</p></div>
+    </section>
+    </div>
+    <div class="col">
+  <section class="panel steps" id="stepsPanel">
     <details open>
       <summary>Langkah perhitungan</summary>
-      <pre id="steps"></pre>
+      <div id="steps"><p class="empty">Rincian langkah perhitungan akan muncul di sini setelah kamu menekan "Hitung arah kiblat".</p></div>
     </details>
   </section>
+    </div>
+  </div>
+  <footer class="foot">
+    <p>Qiblad gratis dipakai. Kalau membantu belajarmu, kamu bisa mendukung pengembangannya.</p>
+    <a class="btn dukung" href="https://trakteer.id/nuyogurt" target="_blank" rel="noopener noreferrer">Dukung di Trakteer</a>
+    <p class="catatan-foot">Hasil perhitungan adalah alat bantu hitung dan belajar. Untuk menentukan arah kiblat bangunan seperti masjid, cocokkan dengan lembaga atau sumber falak resmi.</p>
+  </footer>
 </div>
 <script src="script.js"></script>
 </body>
